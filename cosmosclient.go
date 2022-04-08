@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"os"
@@ -10,6 +11,11 @@ import (
 var (
 	dbName        = "bookstore"
 	containerName = "books"
+	sampleBook    = Book{
+		Id:    "000000001",
+		Title: "Computer Science",
+		Price: 100.00,
+	}
 )
 
 func GetClient() *azcosmos.Client {
@@ -40,7 +46,7 @@ func getContainer() *azcosmos.ContainerClient {
 	return container
 }
 
-func CreateDatabaseAndContainer() {
+func InitializeDatabaseAndContainer() {
 	client := GetClient()
 
 	databaseProperties := azcosmos.DatabaseProperties{ID: dbName}
@@ -72,4 +78,21 @@ func CreateDatabaseAndContainer() {
 	}
 
 	fmt.Printf("Container created. ActivityId %s\r\n", resp.ActivityID)
+
+	fmt.Printf("\r\nAdding sample book entry to DB...\r\n")
+	container := getContainer()
+
+	pk := azcosmos.NewPartitionKeyString(sampleBook.Title)
+
+	marshalled, err := json.Marshal(sampleBook)
+	if err != nil {
+		panic(err)
+	}
+
+	itemResponse, err := container.CreateItem(context.Background(), pk, marshalled, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Sample book entry added. ActivityId %s consuming %v RU\r\n", itemResponse.ActivityID, itemResponse.RequestCharge)
 }

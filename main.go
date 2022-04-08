@@ -9,41 +9,20 @@ import (
 )
 
 func main() {
-	//CreateDatabaseAndContainer()
+	// InitializeDatabaseAndContainer() provides the convenience to quickly set up a cosmos DB and its container for our demonstration.
+	// Comment out InitializeDatabaseAndContainer() and only run demo() if the DB and container have been deployed on the cloud.
+	InitializeDatabaseAndContainer()
+
 	demo()
 }
 
 func demo() {
-	book := Book{
-		Id:    "000000001",
-		Title: "Computer Science",
-		Price: 100.00,
-	}
-	//addBook(book)
+	book := sampleBook
 	receivedBook1, etag1 := readBookInfo(book)
-	updateBookPrice(receivedBook1, 124.00, etag1)
-	updateBookPrice(receivedBook1, 126.00, etag1)
+	updateBookPrice(receivedBook1, 120.00, etag1)
+	updateBookPrice(receivedBook1, 150.00, etag1) // This will be rejected
 	receivedBook2, etag2 := readBookInfo(book)
-	updateBookPrice(receivedBook2, 126.00, etag2)
-}
-
-func addBook(book Book) {
-	fmt.Printf("\r\nAdding book entry to DB...\r\n")
-	container := getContainer()
-
-	pk := azcosmos.NewPartitionKeyString(book.Title)
-
-	marshalled, err := json.Marshal(book)
-	if err != nil {
-		panic(err)
-	}
-
-	itemResponse, err := container.CreateItem(context.Background(), pk, marshalled, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Book entry added. ActivityId %s consuming %v RU\r\n", itemResponse.ActivityID, itemResponse.RequestCharge)
+	updateBookPrice(receivedBook2, 150.00, etag2) // This will succeed
 }
 
 func readBookInfo(book Book) (Book, azcore.ETag) {
