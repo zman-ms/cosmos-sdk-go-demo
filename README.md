@@ -1,5 +1,5 @@
 # cosmos-sdk-go-demo
-Sample codes of using Cosmos DB SDK in Go
+Sample codes of using Cosmos DB SDK in Go. Currently, this is just a demonstration of ETag handling.
 
 Prerequisite:
 1. Set up a cosmos DB account beforehand. This can be done through Azure Portal, Azure Client or even the SDK used by this demo. 
