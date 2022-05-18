@@ -14,10 +14,10 @@ func main() {
 
 	InitializeDatabaseAndContainer()
 
-	demo()
+	demoCrudAndEtag()
 }
 
-func demo() {
+func demoCrudAndEtag() {
 	book := sampleBook
 
 	addBookInfo(book) // Add an item into the container
@@ -28,6 +28,8 @@ func demo() {
 	receivedBook2, etag2 := readBookInfo(book)
 	updateBookPrice(receivedBook2, 150.00, etag2) // This will succeed since etag2 is the latest ETag so far.
 
+	demoSqlQuery(book)
+
 	deleteBookInfo(receivedBook2, etag2)       // This will be rejected for outdated ETag as well.
 	receivedBook3, etag3 := readBookInfo(book) // receivedBook3 will contain the updated price 150.00
 	deleteBookInfo(receivedBook3, etag3)       // This will succeed since etag3 is the latest ETag.
@@ -35,7 +37,7 @@ func demo() {
 
 func addBookInfo(book Book) {
 	fmt.Printf("\r\nAdding sample book entry to DB...\r\n")
-	container := getContainer()
+	container := GetContainer()
 
 	pk := azcosmos.NewPartitionKeyString(book.Title)
 
@@ -54,9 +56,9 @@ func addBookInfo(book Book) {
 
 func readBookInfo(book Book) (Book, azcore.ETag) {
 	fmt.Printf("\r\nReading book info...\r\n")
-	container := getContainer()
+	container := GetContainer()
 	pk := azcosmos.NewPartitionKeyString(book.Title)
-	itemResponse, err := container.ReadItem(context.Background(), pk, string(book.Id), nil)
+	itemResponse, err := container.ReadItem(context.Background(), pk, book.Id, nil)
 
 	var receivedBook Book
 	err = json.Unmarshal(itemResponse.Value, &receivedBook)
@@ -75,7 +77,7 @@ func readBookInfo(book Book) (Book, azcore.ETag) {
 
 func updateBookPrice(book Book, newPrice float32, etag azcore.ETag) {
 	fmt.Printf("\r\nUpdating book price...\r\n")
-	container := getContainer()
+	container := GetContainer()
 	book.Price = newPrice
 	marshalledBook, err := json.Marshal(book)
 	if err != nil {
@@ -84,7 +86,7 @@ func updateBookPrice(book Book, newPrice float32, etag azcore.ETag) {
 
 	// Replace with Etag
 	pk := azcosmos.NewPartitionKeyString(book.Title)
-	itemResponse, err := container.ReplaceItem(context.Background(), pk, string(book.Id), marshalledBook, &azcosmos.ItemOptions{IfMatchEtag: &etag})
+	itemResponse, err := container.ReplaceItem(context.Background(), pk, book.Id, marshalledBook, &azcosmos.ItemOptions{IfMatchEtag: &etag})
 	if err != nil {
 		fmt.Printf("Update rejected.\r\nError is\r\n%s\r\n", err)
 
@@ -94,16 +96,32 @@ func updateBookPrice(book Book, newPrice float32, etag azcore.ETag) {
 }
 
 func deleteBookInfo(book Book, etag azcore.ETag) {
-	fmt.Printf("\r\nDeleting book price...\r\n")
-	container := getContainer()
+	fmt.Printf("\r\nDeleting book info...\r\n")
+	container := GetContainer()
 
 	// Replace with Etag
 	pk := azcosmos.NewPartitionKeyString(book.Title)
-	itemResponse, err := container.DeleteItem(context.Background(), pk, string(book.Id), &azcosmos.ItemOptions{IfMatchEtag: &etag})
+	itemResponse, err := container.DeleteItem(context.Background(), pk, book.Id, &azcosmos.ItemOptions{IfMatchEtag: &etag})
 	if err != nil {
 		fmt.Printf("Delete operation rejected.\r\nError is\r\n%s\r\n", err)
 
 	} else {
 		fmt.Printf("Book info deleted.\r\nActivityId %s consuming %v RU\r\n", itemResponse.ActivityID, itemResponse.RequestCharge)
+	}
+}
+
+func demoSqlQuery(book Book) {
+	fmt.Printf("\r\nQuerying book info...\r\n")
+	container := GetContainer()
+	pager := container.NewQueryItemsPager("select * from books b", azcosmos.NewPartitionKeyString(book.Title), nil)
+	for pager.More() {
+		queryResponse, err := pager.NextPage(context.Background())
+		fmt.Printf("Reponse = %s\r\n", queryResponse.RawResponse.Body)
+		if err != nil {
+			fmt.Printf("failed to get next page of query response. error = %s\r\n", err)
+		}
+		for _, item := range queryResponse.Items {
+			fmt.Printf("Book = %s\r\n", string(item))
+		}
 	}
 }

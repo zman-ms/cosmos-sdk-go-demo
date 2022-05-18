@@ -36,7 +36,16 @@ func GetClient() *azcosmos.Client {
 	return client
 }
 
-func getContainer() *azcosmos.ContainerClient {
+func GetDataBase() *azcosmos.DatabaseClient {
+	client := GetClient()
+	db, err := client.NewDatabase(dbName)
+	if err != nil {
+		panic(err)
+	}
+	return db
+}
+
+func GetContainer() *azcosmos.ContainerClient {
 	client := GetClient()
 	container, err := client.NewContainer(dbName, containerName)
 	if err != nil {
